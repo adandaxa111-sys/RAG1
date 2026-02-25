@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+python-multipart
+sentence-transformers
+faiss-cpu
+openai
+numpy
+PyPDF2
+python-docx
+python-pptx
+openpyxl
+striprtf
+beautifulsoup4
