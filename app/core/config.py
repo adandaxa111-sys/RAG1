@@ -29,7 +29,7 @@ TOP_K = int(os.getenv("TOP_K", "5"))
 # ── LLM (LM Studio or any OpenAI-compatible server) ──
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://127.0.0.1:1234/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "lm-studio")
-LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5-7b-instruct")
+LLM_MODEL = os.getenv("LLM_MODEL", "gemma-3-12b-it")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1024"))
 
