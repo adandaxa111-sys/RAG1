@@ -22,3 +22,9 @@ uploads/
 # OS
 Thumbs.db
 .DS_Store
+
+# Local environment bootstrap artifacts
+get-pip.py
+.pybootstrap/
+.venv/
+.vendor/
