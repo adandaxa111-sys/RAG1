@@ -12,7 +12,7 @@ pip install -r requirements.txt
 
 ```bash
 # Start the server
-python -m uvicorn app.main:app --reload --port 8000
+python3 -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Or use the convenience script:
