@@ -158,7 +158,7 @@ function renderDocuments(docs) {
   }
 
   docList.innerHTML = docs.map(doc => `
-    <div class="doc-item">
+    <div class="doc-item" data-doc-id="${escapeHtml(doc.doc_id)}">
       <div class="doc-item-icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
@@ -169,8 +169,35 @@ function renderDocuments(docs) {
         <div class="doc-item-name" title="${escapeHtml(doc.name)}">${escapeHtml(doc.name)}</div>
         <div class="doc-item-meta">${doc.chunks} chunks</div>
       </div>
+      <button class="doc-delete-btn" title="Remove from knowledge base" onclick="deleteDocument('${escapeHtml(doc.doc_id)}', '${escapeHtml(doc.name)}')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+      </button>
     </div>
   `).join('');
+}
+
+async function deleteDocument(docId, docName) {
+  if (!confirm(`Remove "${docName}" from the knowledge base?`)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(docId)}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      showToast(`"${docName}" removed`, 'success');
+      loadDocuments();
+    } else {
+      const data = await res.json();
+      showToast(data.detail || 'Failed to delete document', 'error');
+    }
+  } catch {
+    showToast('Could not connect to the server', 'error');
+  }
 }
 
 refreshDocs.addEventListener('click', loadDocuments);

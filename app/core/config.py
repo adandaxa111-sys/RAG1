@@ -12,6 +12,7 @@ STATIC_DIR = PROJECT_ROOT / "static"
 CHUNKS_FILE = PROCESSED_DIR / "chunks.jsonl"
 DOCS_FILE = PROCESSED_DIR / "docs.jsonl"
 FAISS_INDEX_FILE = INDEX_DIR / "faiss.index"
+VECTORS_FILE = INDEX_DIR / "vectors.npy"
 
 for d in (RAW_DIR, PROCESSED_DIR, INDEX_DIR):
     d.mkdir(parents=True, exist_ok=True)

@@ -58,6 +58,11 @@ class HealthResponse(BaseModel):
     chunks: int
 
 
+class DeleteResponse(BaseModel):
+    message: str
+    doc_id: str
+
+
 # ── Endpoints ──
 
 @router.post("/ingest", response_model=IngestResponse)
@@ -109,6 +114,15 @@ async def list_documents():
     """List all ingested documents."""
     docs = pipeline.list_documents()
     return DocumentsResponse(documents=[DocumentInfo(**d) for d in docs])
+
+
+@router.delete("/documents/{doc_id}", response_model=DeleteResponse)
+async def delete_document(doc_id: str):
+    """Remove a document and all its chunks from the knowledge base."""
+    deleted = pipeline.delete_document(doc_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found.")
+    return DeleteResponse(message="Document deleted successfully", doc_id=doc_id)
 
 
 @router.get("/health", response_model=HealthResponse)
