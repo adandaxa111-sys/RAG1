@@ -280,15 +280,18 @@ function addMessage(role, content, sources) {
       <div class="sources">
         <div class="sources-title">Sources</div>
         <div class="source-list">
-          ${sources.map(s => `
+          ${sources.map(s => {
+            const scoreBadge = s.rerank_score != null ? scoreHtml(s.rerank_score) : '';
+            return `
             <div class="source-item">
               <div class="source-header">
                 <span class="source-badge">Chunk ${s.chunk_id}</span>
                 <span class="source-name">${escapeHtml(s.document_name)}</span>
+                ${scoreBadge}
               </div>
               <div class="source-text">${escapeHtml(s.chunk_text || '')}</div>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
       </div>`;
   }
@@ -331,6 +334,13 @@ function removeMessage(id) {
 
 function scrollToBottom() {
   chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function scoreHtml(logit) {
+  // Convert cross-encoder logit to 0–100% via sigmoid
+  const pct = Math.round(100 / (1 + Math.exp(-logit)));
+  const cls = pct >= 70 ? 'score-high' : pct >= 40 ? 'score-mid' : 'score-low';
+  return `<span class="score-badge ${cls}" title="Reranker relevance score">${pct}%</span>`;
 }
 
 function detectDir(text) {

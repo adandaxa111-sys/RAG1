@@ -29,6 +29,7 @@ class SourceInfo(BaseModel):
     document_name: str
     chunk_id: int
     chunk_text: Optional[str] = None
+    rerank_score: Optional[float] = None
 
 
 class QueryResponse(BaseModel):
