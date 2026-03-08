@@ -333,10 +333,19 @@ function scrollToBottom() {
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+function detectDir(text) {
+  const rtlCount = (text.match(/[\u0590-\u05FF\u0600-\u06FF\uFB1D-\uFDFF\uFE70-\uFEFF]/g) || []).length;
+  const ltrCount = (text.match(/[A-Za-z\u00C0-\u024F]/g) || []).length;
+  return rtlCount > ltrCount ? 'rtl' : 'ltr';
+}
+
 function formatText(text) {
   return text
     .split('\n\n')
-    .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+    .map(p => {
+      const dir = detectDir(p);
+      return `<p dir="${dir}">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`;
+    })
     .join('');
 }
 

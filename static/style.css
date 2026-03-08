@@ -542,6 +542,15 @@ body {
   margin-top: 10px;
 }
 
+.msg-body p[dir="rtl"] {
+  text-align: right;
+  font-family: 'Inter', 'Arial Hebrew', 'David', sans-serif;
+}
+
+.msg-body p[dir="ltr"] {
+  text-align: left;
+}
+
 /* ── Sources ── */
 .sources {
   margin-top: 12px;

@@ -18,7 +18,7 @@ for d in (RAW_DIR, PROCESSED_DIR, INDEX_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 # ── Embedding ──
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "google/embeddinggemma-300m")
 
 # ── Chunking ──
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))
