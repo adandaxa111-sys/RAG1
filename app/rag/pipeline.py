@@ -1,4 +1,5 @@
 from app.retrieval.embeddings import Embedder
+from app.retrieval.reranker import Reranker
 from app.retrieval.vector_store import VectorStore
 from app.retrieval.store_schema import ChunkMeta, DocMeta
 from app.ingestion.loader import load_text_from_bytes
@@ -9,7 +10,7 @@ from app.llm.types import LLMRequest
 from app.rag.prompt import SYSTEM_PROMPT, build_context, build_user_prompt
 from app.utils.ids import generate_doc_id, generate_chunk_id
 from app.utils.paths import safe_save_path
-from app.core.config import TOP_K
+from app.core.config import TOP_K, RERANKER_ENABLED, RERANKER_CANDIDATES
 from app.core.logging import log
 
 
@@ -20,6 +21,11 @@ class RAGPipeline:
         self.embedder = Embedder()
         self.store = VectorStore(dimension=self.embedder.dimension)
         self.llm = LMStudioClient()
+        self.reranker = Reranker() if RERANKER_ENABLED else None
+        if self.reranker:
+            log.info("Reranker enabled")
+        else:
+            log.info("Reranker disabled")
 
     # ── Ingest ──
 
@@ -80,7 +86,16 @@ class RAGPipeline:
     def query(self, question: str, top_k: int = TOP_K) -> dict:
         """Retrieve relevant chunks and generate an LLM answer."""
         query_vec = self.embedder.encode_query(question)
-        retrieved = self.store.search(query_vec, top_k=top_k)
+
+        if self.reranker:
+            # Fetch more candidates then rerank down to top_k
+            candidates = self.store.search(query_vec, top_k=RERANKER_CANDIDATES)
+            ranked = self.reranker.rerank(question, candidates, top_n=top_k)
+            retrieved = [chunk for chunk, _ in ranked]
+            scores = [score for _, score in ranked]
+        else:
+            retrieved = self.store.search(query_vec, top_k=top_k)
+            scores = [None] * len(retrieved)
 
         context = build_context(retrieved)
 
@@ -102,8 +117,9 @@ class RAGPipeline:
                 "document_name": c.document_name,
                 "chunk_id": c.chunk_index,
                 "chunk_text": c.text,
+                "rerank_score": score,
             }
-            for c in retrieved
+            for c, score in zip(retrieved, scores)
         ]
 
         return {"answer": answer, "sources": sources}

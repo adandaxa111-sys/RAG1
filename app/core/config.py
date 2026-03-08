@@ -27,6 +27,13 @@ CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "50"))
 # ── Retrieval ──
 TOP_K = int(os.getenv("TOP_K", "5"))
 
+# ── Reranker ──
+RERANKER_ENABLED = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
+# How many candidates to pull from FAISS before reranking (should be > TOP_K)
+RERANKER_CANDIDATES = int(os.getenv("RERANKER_CANDIDATES", "15"))
+# Multilingual cross-encoder — good for Hebrew + English
+RERANKER_MODEL = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+
 # ── LLM (LM Studio or any OpenAI-compatible server) ──
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://127.0.0.1:1234/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "lm-studio")
