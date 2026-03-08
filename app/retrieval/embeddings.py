@@ -15,8 +15,19 @@ class Embedder:
         log.info(f"Embedding model ready — dimension={self.dimension}")
 
     def encode(self, texts: list[str]) -> np.ndarray:
-        vectors = self.model.encode(texts, show_progress_bar=False, normalize_embeddings=True)
+        vectors = self.model.encode(
+            texts,
+            prompt_name="document",
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        )
         return np.array(vectors, dtype=np.float32)
 
     def encode_query(self, query: str) -> np.ndarray:
-        return self.encode([query])
+        vectors = self.model.encode(
+            [query],
+            prompt_name="query",
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        )
+        return np.array(vectors, dtype=np.float32)

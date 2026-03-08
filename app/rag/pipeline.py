@@ -108,6 +108,11 @@ class RAGPipeline:
 
         return {"answer": answer, "sources": sources}
 
+    # ── Delete ──
+
+    def delete_document(self, doc_id: str) -> bool:
+        return self.store.delete_document(doc_id)
+
     # ── State ──
 
     def has_documents(self) -> bool:
