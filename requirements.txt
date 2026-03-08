@@ -1,12 +1,19 @@
 fastapi
 uvicorn[standard]
 python-multipart
+
+# ML / embeddings / reranker
 torch
 Pillow>=9.1.0
 sentence-transformers
+huggingface_hub
 faiss-cpu
-openai
 numpy
+
+# LLM client
+openai
+
+# Document loaders
 PyPDF2
 python-docx
 python-pptx
