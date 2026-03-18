@@ -47,7 +47,7 @@ All settings are in `app/core/config.py` and can be overridden via environment v
 | `RERANKER_CANDIDATES` | `15` | Chunks fetched from FAISS before reranking |
 | `LLM_BASE_URL` | `http://127.0.0.1:1234/v1` | LM Studio / OpenAI-compatible endpoint |
 | `LLM_API_KEY` | `lm-studio` | API key for the LLM server |
-| `LLM_MODEL` | `gemma-3-12b-it` | Model name loaded in LM Studio |
+| `LLM_MODEL` | `gemma-3-4b-it` | Model name loaded in LM Studio |
 | `LLM_TEMPERATURE` | `0.2` | Sampling temperature |
 | `LLM_MAX_TOKENS` | `1024` | Max tokens in LLM response |
 

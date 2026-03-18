@@ -168,6 +168,63 @@ def _load_json(content: bytes) -> str:
     text = content.decode("utf-8", errors="replace")
     try:
         data = json.loads(text)
-        return json.dumps(data, indent=2, ensure_ascii=False)
+        return _json_to_text(data)
     except json.JSONDecodeError:
         return text
+
+
+def _flatten_value(value, depth: int = 0) -> str:
+    """Recursively convert a JSON value into a readable inline string."""
+    if isinstance(value, dict):
+        pairs = [f"{k}: {_flatten_value(v, depth + 1)}" for k, v in value.items()]
+        sep = "; " if depth > 0 else "\n"
+        return sep.join(pairs)
+    if isinstance(value, list):
+        if not value:
+            return ""
+        # Homogeneous list of scalars → comma-joined
+        if all(isinstance(i, (str, int, float, bool)) or i is None for i in value):
+            return ", ".join("null" if i is None else str(i) for i in value)
+        # Heterogeneous or nested → one entry per line
+        return "\n".join(_flatten_value(i, depth + 1) for i in value)
+    if value is None:
+        return "null"
+    return str(value)
+
+
+def _json_to_text(data) -> str:
+    """Convert parsed JSON into chunking-friendly plain text.
+
+    Strategies:
+    - List of objects  → one paragraph per object (natural chunk boundaries).
+    - Dict             → key: value pairs, nested arrays of objects expanded.
+    - Scalar / other   → plain string conversion.
+    """
+    if isinstance(data, list):
+        blocks: list[str] = []
+        for item in data:
+            if isinstance(item, dict):
+                lines = [f"{k}: {_flatten_value(v, depth=1)}" for k, v in item.items()]
+                blocks.append("\n".join(lines))
+            else:
+                blocks.append(_flatten_value(item))
+        return "\n\n".join(blocks)
+
+    if isinstance(data, dict):
+        parts: list[str] = []
+        for k, v in data.items():
+            if isinstance(v, list) and v and all(isinstance(i, dict) for i in v):
+                # Nested array of objects — give each its own labelled block
+                sub_blocks = [f"[{k}]"]
+                for item in v:
+                    lines = [f"  {ik}: {_flatten_value(iv, depth=1)}" for ik, iv in item.items()]
+                    sub_blocks.append("\n".join(lines))
+                parts.append("\n".join(sub_blocks))
+            elif isinstance(v, dict):
+                lines = [f"  {sk}: {_flatten_value(sv, depth=1)}" for sk, sv in v.items()]
+                parts.append(f"{k}:\n" + "\n".join(lines))
+            else:
+                parts.append(f"{k}: {_flatten_value(v, depth=1)}")
+        return "\n\n".join(parts)
+
+    return str(data)
