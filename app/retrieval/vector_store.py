@@ -85,6 +85,35 @@ class VectorStore:
             for d in self.docs.values()
         ]
 
+    def list_chunks(self, doc_id: str | None = None) -> list[dict]:
+        """Return all chunk metadata, optionally filtered by document."""
+        return [
+            c.to_dict()
+            for c in self.chunks
+            if doc_id is None or c.doc_id == doc_id
+        ]
+
+    def get_stats(self) -> dict:
+        return {
+            "total_vectors": self.index.ntotal,
+            "dimension": self.dimension,
+            "index_type": "IndexFlatIP",
+            "total_documents": len(self.docs),
+            "total_chunks": len(self.chunks),
+        }
+
+    def search_with_scores(self, query_vector: np.ndarray, top_k: int = TOP_K) -> list[tuple]:
+        """Return (ChunkMeta, cosine_score) pairs for the top-k results."""
+        if self.index.ntotal == 0:
+            return []
+        k = min(top_k, self.index.ntotal)
+        scores, indices = self.index.search(query_vector, k)
+        return [
+            (self.chunks[idx], float(scores[0][i]))
+            for i, idx in enumerate(indices[0])
+            if 0 <= idx < len(self.chunks)
+        ]
+
     # ── Persistence ──
 
     def _save_to_disk(self):

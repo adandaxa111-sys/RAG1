@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -62,6 +62,49 @@ class HealthResponse(BaseModel):
 class DeleteResponse(BaseModel):
     message: str
     doc_id: str
+
+
+class ChunkInfo(BaseModel):
+    chunk_id: str
+    doc_id: str
+    document_name: str
+    chunk_index: int
+    text: str
+    char_offset: int
+    char_length: int
+
+
+class ChunksResponse(BaseModel):
+    chunks: list[ChunkInfo]
+    total: int
+
+
+class StatsResponse(BaseModel):
+    total_vectors: int
+    dimension: int
+    index_type: str
+    total_documents: int
+    total_chunks: int
+    embedding_model: str
+    reranker_enabled: bool
+
+
+class RawSearchRequest(BaseModel):
+    question: str
+    top_k: Optional[int] = None
+
+
+class RawSearchResult(BaseModel):
+    document_name: str
+    chunk_id: int
+    chunk_text: str
+    score: float
+    score_type: str
+
+
+class RawSearchResponse(BaseModel):
+    question: str
+    results: list[RawSearchResult]
 
 
 # ── Endpoints ──
@@ -134,3 +177,29 @@ async def health():
         documents=len(pipeline.list_documents()),
         chunks=pipeline.store.total_chunks,
     )
+
+
+@router.get("/chunks", response_model=ChunksResponse)
+async def list_chunks(doc_id: Optional[str] = Query(default=None)):
+    """List all stored chunks, optionally filtered by document ID."""
+    chunks = pipeline.list_chunks(doc_id)
+    return ChunksResponse(chunks=chunks, total=len(chunks))
+
+
+@router.get("/stats", response_model=StatsResponse)
+async def get_stats():
+    """Return vector store and model statistics."""
+    return StatsResponse(**pipeline.get_stats())
+
+
+@router.post("/search_raw", response_model=RawSearchResponse)
+async def search_raw(req: RawSearchRequest):
+    """Semantic search: return top-k chunks with scores, no LLM generation."""
+    if not pipeline.has_documents():
+        raise HTTPException(
+            status_code=400,
+            detail="No documents in the knowledge base. Please ingest documents first.",
+        )
+    from app.core.config import TOP_K
+    results = pipeline.search_raw(req.question, top_k=req.top_k or TOP_K)
+    return RawSearchResponse(question=req.question, results=results)

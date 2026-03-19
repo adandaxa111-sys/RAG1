@@ -136,3 +136,42 @@ class RAGPipeline:
 
     def list_documents(self) -> list[dict]:
         return self.store.list_documents()
+
+    def list_chunks(self, doc_id: str | None = None) -> list[dict]:
+        return self.store.list_chunks(doc_id)
+
+    def get_stats(self) -> dict:
+        stats = self.store.get_stats()
+        stats["embedding_model"] = self.embedder.model_name
+        stats["reranker_enabled"] = RERANKER_ENABLED
+        return stats
+
+    def search_raw(self, question: str, top_k: int = TOP_K) -> list[dict]:
+        """Retrieve top-k chunks with relevance scores — no LLM involved."""
+        query_vec = self.embedder.encode_query(question)
+
+        if self.reranker:
+            candidates = self.store.search(query_vec, top_k=RERANKER_CANDIDATES)
+            ranked = self.reranker.rerank(question, candidates, top_n=top_k)
+            return [
+                {
+                    "document_name": chunk.document_name,
+                    "chunk_id": chunk.chunk_index,
+                    "chunk_text": chunk.text,
+                    "score": float(score),
+                    "score_type": "rerank",
+                }
+                for chunk, score in ranked
+            ]
+
+        results = self.store.search_with_scores(query_vec, top_k=top_k)
+        return [
+            {
+                "document_name": chunk.document_name,
+                "chunk_id": chunk.chunk_index,
+                "chunk_text": chunk.text,
+                "score": score,
+                "score_type": "cosine",
+            }
+            for chunk, score in results
+        ]

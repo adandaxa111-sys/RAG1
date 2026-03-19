@@ -365,6 +365,180 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// ── Tab Switching ──
+const viewChat = document.getElementById('viewChat');
+const viewInspector = document.getElementById('viewInspector');
+const tabChat = document.getElementById('tabChat');
+const tabInspector = document.getElementById('tabInspector');
+
+tabChat.addEventListener('click', () => switchTab('chat'));
+tabInspector.addEventListener('click', () => {
+  switchTab('inspector');
+  loadInspector();
+});
+
+function switchTab(tab) {
+  const isChat = tab === 'chat';
+  viewChat.classList.toggle('hidden', !isChat);
+  viewInspector.classList.toggle('hidden', isChat);
+  tabChat.classList.toggle('active', isChat);
+  tabInspector.classList.toggle('active', !isChat);
+}
+
+// ── Inspector ──
+const liveSearchInput = document.getElementById('liveSearchInput');
+const liveSearchBtn = document.getElementById('liveSearchBtn');
+const liveSearchResults = document.getElementById('liveSearchResults');
+const chunkTree = document.getElementById('chunkTree');
+const refreshInspector = document.getElementById('refreshInspector');
+
+liveSearchBtn.addEventListener('click', runLiveSearch);
+liveSearchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runLiveSearch();
+});
+refreshInspector.addEventListener('click', loadInspector);
+
+async function loadInspector() {
+  await Promise.all([loadStats(), loadChunkTree()]);
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch(`${API_BASE}/stats`);
+    if (!res.ok) return;
+    const s = await res.json();
+
+    document.getElementById('statDocs').textContent = s.total_documents;
+    document.getElementById('statChunks').textContent = s.total_chunks.toLocaleString();
+    document.getElementById('statDim').textContent = s.dimension;
+    document.getElementById('statReranker').textContent = s.reranker_enabled ? 'On' : 'Off';
+
+    const modelRow = document.getElementById('statModelRow');
+    modelRow.innerHTML = `
+      <span class="model-pill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Embedding model: <strong>${escapeHtml(s.embedding_model)}</strong>
+      </span>
+      <span class="model-pill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        Index: <strong>${escapeHtml(s.index_type)}</strong> &nbsp;·&nbsp; ${s.total_vectors.toLocaleString()} vectors
+      </span>`;
+  } catch {
+    // server not running
+  }
+}
+
+async function loadChunkTree() {
+  try {
+    const [docsRes, chunksRes] = await Promise.all([
+      fetch(`${API_BASE}/documents`),
+      fetch(`${API_BASE}/chunks`),
+    ]);
+    if (!docsRes.ok || !chunksRes.ok) return;
+
+    const { documents } = await docsRes.json();
+    const { chunks } = await chunksRes.json();
+
+    if (!documents.length) {
+      chunkTree.innerHTML = `<div class="empty-state"><p>No documents ingested yet.</p></div>`;
+      return;
+    }
+
+    // Group chunks by doc_id
+    const byDoc = {};
+    for (const c of chunks) {
+      if (!byDoc[c.doc_id]) byDoc[c.doc_id] = [];
+      byDoc[c.doc_id].push(c);
+    }
+
+    chunkTree.innerHTML = documents.map(doc => {
+      const docChunks = (byDoc[doc.doc_id] || []).sort((a, b) => a.chunk_index - b.chunk_index);
+      const id = `tree-${escapeHtml(doc.doc_id)}`;
+      return `
+        <div class="tree-doc">
+          <button class="tree-doc-header" onclick="toggleTreeDoc('${id}')">
+            <svg class="tree-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <span class="tree-doc-name">${escapeHtml(doc.name)}</span>
+            <span class="tree-doc-count">${docChunks.length} chunks</span>
+          </button>
+          <div class="tree-chunks hidden" id="${id}">
+            ${docChunks.map(c => `
+              <div class="tree-chunk">
+                <div class="tree-chunk-header">
+                  <span class="source-badge">Chunk ${c.chunk_index}</span>
+                  <span class="tree-chunk-chars">${c.char_length} chars</span>
+                </div>
+                <div class="tree-chunk-text">${escapeHtml(c.text)}</div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  } catch {
+    // server not running
+  }
+}
+
+function toggleTreeDoc(id) {
+  const el = document.getElementById(id);
+  const arrow = el.previousElementSibling.querySelector('.tree-arrow');
+  const isOpen = !el.classList.contains('hidden');
+  el.classList.toggle('hidden', isOpen);
+  arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+async function runLiveSearch() {
+  const question = liveSearchInput.value.trim();
+  if (!question) return;
+
+  liveSearchResults.innerHTML = `
+    <div class="live-search-loading">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+      <span>Searching vector store...</span>
+    </div>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/search_raw`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      liveSearchResults.innerHTML = `<div class="live-search-empty">${escapeHtml(data.detail || 'Search failed')}</div>`;
+      return;
+    }
+
+    if (!data.results.length) {
+      liveSearchResults.innerHTML = `<div class="live-search-empty">No results found.</div>`;
+      return;
+    }
+
+    const scoreLabel = data.results[0].score_type === 'rerank' ? 'Rerank score' : 'Cosine similarity';
+
+    liveSearchResults.innerHTML = `
+      <div class="live-search-meta">${data.results.length} chunks retrieved &nbsp;·&nbsp; ${scoreLabel}</div>
+      ${data.results.map((r, i) => {
+        const pct = r.score_type === 'rerank'
+          ? Math.round(100 / (1 + Math.exp(-r.score)))
+          : Math.round(r.score * 100);
+        const cls = pct >= 70 ? 'score-high' : pct >= 40 ? 'score-mid' : 'score-low';
+        return `
+          <div class="source-item">
+            <div class="source-header">
+              <span class="source-badge">Chunk ${r.chunk_id}</span>
+              <span class="source-name">${escapeHtml(r.document_name)}</span>
+              <span class="score-badge ${cls}" title="${scoreLabel}: ${r.score.toFixed(4)}">${pct}%</span>
+            </div>
+            <div class="source-text">${escapeHtml(r.chunk_text)}</div>
+          </div>`;
+      }).join('')}`;
+  } catch {
+    liveSearchResults.innerHTML = `<div class="live-search-empty">Could not connect to the server.</div>`;
+  }
+}
+
 // ── Init ──
 initTheme();
 loadDocuments();
